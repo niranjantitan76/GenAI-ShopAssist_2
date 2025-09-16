@@ -1,0 +1,15 @@
+pandas
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+alembic
+python-dotenv
+gradio
+tenacity
+openai
+pydantic
+httpx
+fastapi
+IPython
+logging

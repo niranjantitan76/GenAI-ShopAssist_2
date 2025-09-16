@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+fastapi = "^0.111.0"
+uvicorn = "^0.30.0"
+
+[project]
+name = "ShopAssist_2"
+version = "0.1.0"
+description = "A FastAPI project template"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas",
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "pydantic",
+    "alembic",
+    "python-dotenv",
+    "gradio",
+    "tenacity",
+    "openai",
+    "pydantic",
+    "httpx",
+    "fastapi",
+    "IPython",
+    "logging"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
