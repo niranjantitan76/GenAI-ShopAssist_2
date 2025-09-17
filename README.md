@@ -14,6 +14,19 @@ However, the overwhelming number of choices and the lack of personalized assista
 experience daunting. To address this, we have developed **ShopAssist AI, a chatbot that combines the power of
 large language models and rule-based functions to ensure accurate and reliable information delivery**.
 
+## Steps
+- ### 📦 Prerequisites
+Before running the app, make sure you have:
+Docker installed
+
+- ### 🚀 Running the App
+- 1️⃣ Clone the repository
+git clone https://github.com/niranjantitan76/GenAI-ShopAssist_2.git
+- - cd GenAI-ShopAssist_2
+- -  uv sync or uv pip install -r requirements.txt 
+- 2️⃣ Build and start the container
+- - docker-compose up --build
+
 ## Technologies Used
 - python = ">=3.9,<4.0"
 - fastapi = "^0.111.0"
