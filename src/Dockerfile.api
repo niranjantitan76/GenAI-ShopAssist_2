@@ -1,0 +1,26 @@
+# --- Stage 1: Build dependencies ---
+FROM python:3.10-slim AS builder
+
+WORKDIR /app
+
+# Install dependencies from a requirements file
+COPY ./requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- Stage 2: Create final, lightweight image ---
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy only the installed packages from the builder stage
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+
+# Copy your source code
+COPY src/api ./api
+
+# Expose the port the application runs on
+EXPOSE 8000
+
+# Use the python interpreter to run gunicorn directly.
+# The command is changed from `main:main` to `main:app` to match the application object name in your main.py file.
+CMD ["python", "-m", "gunicorn", "api.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

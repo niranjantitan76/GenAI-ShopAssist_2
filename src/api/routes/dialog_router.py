@@ -1,7 +1,6 @@
 
 from fastapi import APIRouter, Depends
 from ..services.dialog.dialog_service import dialogue
-from lib.chat_client import ChatClient
 # from lib.dialog_manager import Dialogue_mgmt_system
 dialog = APIRouter()
 from pydantic import BaseModel

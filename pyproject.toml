@@ -34,3 +34,7 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.scripts]
+shopassist = "shopassist_2.main:app"
+
