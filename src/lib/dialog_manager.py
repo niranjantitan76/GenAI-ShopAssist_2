@@ -98,7 +98,7 @@ async def dialogue(user_input, state):
             else:
                 # Intent confirmed: extract variables and fetch laptops
                 print('\n' + "Variables extracted!" + '\n')  # For debugging
-                extracted_user_prefs = dictionary_present(response_assistant)
+                extracted_user_prefs = chat_completions(dictionary_present(response_assistant))
                 print(
                     "Thank you for providing all the information. Kindly wait, while I fetch the products: \n")  # For debugging
 

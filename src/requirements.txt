@@ -15,4 +15,3 @@ httpx
 fastapi
 IPython
 redis
-os

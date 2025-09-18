@@ -1,10 +1,14 @@
 import pandas as pd  # Importing the pandas library for data manipulation
 import json
+import os
 from .dictionary_req import dictionary_present
-from .chat_client import ChatClient
-def recommend(response_dic,client: ChatClient):
+from .chat_manager import chat_completions
+def recommend(response_dic):
     print('Recommendation Layer')
-    laptop_df = pd.read_csv('../data/updated_laptop.csv')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    laptop_df = pd.read_csv(os.path.join(BASE_DIR, "../data/updated_laptop.csv"))
+
+    #laptop_df = pd.read_csv('../data/updated_laptop.csv')
 
     user_requirements = response_dic
 
@@ -12,7 +16,7 @@ def recommend(response_dic,client: ChatClient):
     # Since the function parameter already seems to be a string, we'll use it directly instead of extracting from a dictionary
 
     # Extracting the budget value from user_requirements and converting it to an integer
-    budget = int(user_requirements.get('Budget', '0').replace(',', '').split()[0])
+    budget = parse_budget(user_requirements)
     # budget
     # # Creating a copy of the DataFrame and filtering laptops based on the budget
     filtered_laptops = laptop_df.copy()
@@ -30,7 +34,7 @@ def recommend(response_dic,client: ChatClient):
     for index, row in filtered_laptops.iterrows():
         user_product_match_str = row['laptop_feature']
         #laptop_values = user_product_match_str
-        laptop_values = client.chat_completion(dictionary_present(user_product_match_str))
+        laptop_values = chat_completions(dictionary_present(user_product_match_str))
         score = 0
 
     #     # Comparing user requirements with laptop features and updating scores
@@ -54,3 +58,17 @@ def recommend(response_dic,client: ChatClient):
 
     # top_laptops
     return top_product_json
+
+
+def parse_budget(user_requirements):
+    budget_str = user_requirements.get("Budget", "").replace(",", "").strip()
+
+    if not budget_str:
+        return 0
+
+    first_token = budget_str.split()[0]
+
+    try:
+        return int(float(first_token))  # handles "50000.75" too
+    except ValueError:
+        return 0
