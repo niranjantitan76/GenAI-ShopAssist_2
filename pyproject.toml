@@ -29,7 +29,9 @@ dependencies = [
     "httpx",
     "fastapi",
     "IPython",
-    "logging"
+    "logging",
+    "redis",
+    "os"
 ]
 
 [tool.setuptools.packages.find]

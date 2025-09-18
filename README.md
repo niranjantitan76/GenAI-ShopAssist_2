@@ -2,31 +2,31 @@
 
 ## Table of Contents
 * [General Info](#general-information)
-* [Steps](#pipelines)
+* [System Design](#system-architecture)
+* [Steps](#steps)
 * [Technologies Used](#technologies-used)
 * [Conclusions](#conclusions)
 * [Acknowledgements](#acknowledgements)
-  
-
 ## General Information
 > Our project aims to build a chat boat. Online shopping has become the go-to option for many consumers.
 However, the overwhelming number of choices and the lack of personalized assistance can make the shopping
 experience daunting. To address this, we have developed **ShopAssist AI, a chatbot that combines the power of
 large language models and rule-based functions to ensure accurate and reliable information delivery**.
-
+## System Architecture
+![img.png](img.png)
 ## Steps
 - ### 📦 Prerequisites
-Before running the app, make sure you have:
-Docker installed
-
+    Before running the app, make sure you have:
+    - Docker installed
+    - VS Code or PyCharm or Cursor
 - ### 🚀 Running the App
-- 1️⃣ Clone the repository
-git clone https://github.com/niranjantitan76/GenAI-ShopAssist_2.git
-- - cd GenAI-ShopAssist_2
-- -  uv sync or uv pip install -r requirements.txt 
-- 2️⃣ Build and start the container
-- - docker-compose up --build
-
+  - 1️⃣ Clone the repository
+    - git clone https://github.com/niranjantitan76/GenAI-ShopAssist_2.git
+    - cd GenAI-ShopAssist_2
+    -  uv sync or uv pip install -r requirements.txt 
+  - 2️⃣ Build and start the container
+    - docker-compose up --build
+    - use : http://127.0.0.1:7860/gradio/
 ## Technologies Used
 - python = ">=3.9,<4.0"
 - fastapi = "^0.111.0"
@@ -45,7 +45,9 @@ git clone https://github.com/niranjantitan76/GenAI-ShopAssist_2.git
 - "httpx",
 - "fastapi",
 - "IPython",
-- "logging"
+- "logging",
+- "os",
+- "redis"
 
 
 

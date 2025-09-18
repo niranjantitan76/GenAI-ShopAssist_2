@@ -17,6 +17,7 @@ COPY --from=builder /usr/local /usr/local
 
 # Copy your source code
 COPY src/ui ./ui
+COPY src/data ./data
 
 # Expose the port the application runs on
 EXPOSE 7860
