@@ -1,129 +1,83 @@
-# import gradio as gr
-# import asyncio
-# import requests
-# import traceback
-# from fastapi import FastAPI, Request, Form, File, UploadFile
-# from fastapi.responses import JSONResponse
-# FASTAPI_BASE_URL = "http://api:8000/api/v1/dialogue"
-# from fastapi.middleware.cors import CORSMiddleware
-# import httpx
-# import httpx
-# app = FastAPI()
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],            # <-- Change to list of allowed domains in prod
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# @app.get("/manifest.json")
-# def manifest():
-#     return JSONResponse({
-#         "name": "Laptop Chatbot",
-#         "short_name": "Chatbot",
-#         "start_url": "/",
-#         "display": "standalone",
-#         "background_color": "#ffffff",
-#         "description": "Demo chatbot app"
-#     })
-#
-# def call_backend(user_input, state):
-#     try:
-#         if not state:
-#             state = {"step": 0}
-#         payload = {
-#             "user_input": user_input,
-#             "state": {"step": 0}
-#         }
-#
-#         response = requests.post(FASTAPI_BASE_URL, json=payload)
-#         response.raise_for_status()
-#         data = response.json()
-#         print(f'after response{data}')
-#         reply = data.get("reply", "No response")
-#         state = data.get("state", {})
-#         print('before reply')
-#         return reply, state
-#     except Exception as e:
-#         print(f"❌ Error calling backend: {e}")
-#         print(f"An unexpected error occurred: {e}")  # Print to console for server-side debugging
-#         # On error, provide a graceful message to the user and reset state for a fresh start
-#         print("Error type:", type(e).__name__)
-#         print("Error message:", str(e))
-#         print("Full traceback:")
-#         traceback.print_exc()
-#         return "Backend error, check logs.", state or {}
-# def greet(name):
-#     return f"Hello, {name}!"
-# with gr.Blocks(css=".chatbox {height: 400px;}") as demo:
-#     gr.Markdown("## 💻 Laptop Recommender Chatbot")
-#
-#     chatbot = gr.Chatbot(elem_classes="chatbox", label="Laptop Assistant")
-#     msg = gr.Textbox(placeholder="Type here...", label="Your Message")
-#     state = gr.State()
-#
-#     async def respond(message, chat_history, state):
-#         if chat_history is None:
-#             chat_history = []
-#         reply, state = call_backend(message, state)
-#
-#         # ✅ must append as dicts, not tuples
-#         # chat_history.append({"role": "user", "content": message})
-#         # chat_history.append({"role": "assistant", "content": reply})
-#         chat_history = chat_history + [[message, reply]]
-#         # detect exit
-#         if state and state.get("step") == -1:
-#             import threading
-#             threading.Thread(target=lambda: demo.close(), daemon=True).start()
-#
-#         return "", chat_history, state
-#
-#     async def init_chat():
-#         first_msg, state = call_backend(user_input="", state=None)
-#         print(f'First:{first_msg},state:{state}')
-#         return [[None, first_msg]], state
-#
-#     demo.load(init_chat, inputs=None, outputs=[chatbot, state])  # auto-start
-#     msg.submit(respond, [msg, chatbot, state], [msg, chatbot, state])
-#     app = gr.mount_gradio_app(app, demo, path="/gradio")
-#
-# if __name__ == "__main__":
-#     demo.launch(server_name="127.0.0.1", server_port=7860)
-#
-# #def start_ui():
-#     # with gr.Blocks(css=".chatbox {height: 400px;}") as demo:
-#     #     gr.Markdown("## 💻 Laptop Recommender Chatbot")
-#     #
-#     #     chatbot = gr.Chatbot(elem_classes="chatbox", label="Laptop Assistant")
-#     #     msg = gr.Textbox(placeholder="Type here...", label="Your Message")
-#     #     state = gr.State()
-#     #     def respond(message, chat_history, state):
-#     #         reply, state = post_to_api(endpoint="dialog", data={})
-#     #         chat_history = chat_history + [[message, reply]]
-#     #         # detect exit
-#     #         if state.get("step") == -1:
-#     #             import threading
-#     #             threading.Thread(target=lambda: demo.close(), daemon=True).start()
-#     #         return "", chat_history, state
-#     #     # inject first bot message
-#     #     def init_chat():
-#     #         #first_msg, state = post_to_api(endpoint="dialog", data={})
-#     #         return "Hello" # None means no user message, only bot
-#     #
-#     #     demo.load(init_chat, inputs=None, outputs=[chatbot, state])  # auto-start
-#     #
-#     #     msg.submit(respond, [msg, chatbot, state], [msg, chatbot, state])
-#     # app = gr.mount_gradio_app(app, demo, path="/gradio")
-#     # demo.launch()
-#
-# # def chatbot(message, history):
-# #     return "Hello 👋, you said: " + message
-# #
-# # # Create gradio UI
-# # demo = gr.Interface(fn=chatbot, inputs="text", outputs="text")
-# #
-# # # Mount Gradio to FastAPI at /gradio
-# # app = gr.mount_gradio_app(app, demo, path="/gradio")
-# # #
-# #
-# # if __name__ == "__main__":
-# #     start_ui()
+import gradio as gr
+import asyncio
+import httpx
+import traceback
+from fastapi import FastAPI
+import uvicorn
+import requests
+# IMPORTANT: The FastAPI base URL is now derived from the container name defined in docker-compose.yml
+FASTAPI_BASE_URL = "http://api:8000/api/v1/dialogue"
+
+
+# Use httpx for asynchronous requests
+def call_backend(user_input, state):
+    try:
+        # The backend expects a dictionary for the state
+        payload = {
+            "user_input": user_input,
+            "state": state
+        }
+
+
+        response = requests.post(FASTAPI_BASE_URL, json=payload, timeout=60.0)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("reply"), data.get("state")
+
+    except Exception as e:
+        print(f"❌ An unexpected error occurred: {e}")
+        traceback.print_exc()
+        return "An unexpected error occurred. Please try again.", state or {}
+
+
+with gr.Blocks(css=".chatbox {height: 400px;}") as demo:
+    gr.Markdown("## 💻 Laptop Recommender Chatbot")
+
+    chatbot = gr.Chatbot(elem_classes="chatbox", label="Laptop Assistant")
+    msg = gr.Textbox(placeholder="Type here...", label="Your Message")
+    status_text = gr.Textbox(label="Status", interactive=False)
+    state = gr.State()
+
+
+    async def respond(message, chat_history, state):
+        if not chat_history:
+            chat_history = []
+
+            # 1. Immediately display the user's message
+            chat_history.append([message, None])
+            # YIELD 1: Display user message, show "Thinking..." and disable input
+            yield chat_history, state, gr.update(value="Thinking..."), gr.update(value="", interactive=False)
+
+            # 2. Call the backend with the user's message and current state
+            reply, updated_state = await call_backend(message, state)
+
+            # 3. Append the agent's response to the chat history
+            chat_history[-1][1] = reply
+
+            # 4. Check for reset state and reset the UI if necessary
+            if updated_state and updated_state.get("step") == -1:
+                # YIELD 2: Display reset message
+                yield chat_history, updated_state, gr.update(
+                    value="Conversation reset. Type to begin again."), gr.update(interactive=False)
+                await asyncio.sleep(2)  # Wait for 2 seconds before clearing the history
+                # YIELD 3: Clear all UI components to restart
+                yield [], {"step": 0}, gr.update(value=""), gr.update(value="", interactive=True)
+            else:
+                # YIELD 4: Display new message and re-enable input
+                yield chat_history, updated_state, gr.update(value=""), gr.update(interactive=True)
+
+    def init_chat():
+        reply, updated_state = call_backend(user_input="", state=None)
+        return [[None, reply]], updated_state, gr.update(value=""), gr.update(interactive=True)
+
+
+    demo.load(init_chat, inputs=None, outputs=[chatbot, state, status_text, msg])
+    msg.submit(
+        respond,
+        [msg, chatbot, state],
+        [chatbot, state, status_text, msg],
+        api_name="respond"
+    )
+
+app = FastAPI()
+app = gr.mount_gradio_app(app, demo, path="/gradio")

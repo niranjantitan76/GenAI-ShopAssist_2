@@ -36,21 +36,21 @@ def call_backend(user_input, state):
         if not state:
             state = {"step": 0}
             # Create cache key
-        cache_key = f"chat:{user_input}:{state.get('step', 0)}"
-        cached = r.get(cache_key)
-        if cached:
-            print(f"✅ Cache hit: {cache_key}")
-            return cached, state
+        #cache_key = f"chat:{user_input}:{state.get('step', 0)}"
+        # cached = r.get(cache_key)
+        # if cached:
+        #     print(f"✅ Cache hit: {cache_key}")
+        #     return cached, state
         payload = {"user_input": user_input, "state": state}
 
-        response = requests.post(FASTAPI_BASE_URL, json=payload, timeout=10)
+        response = requests.post(FASTAPI_BASE_URL, json=payload, timeout=19)
         response.raise_for_status()
         data = response.json()
 
         reply = data.get("reply", "No response")
         state = data.get("state", {})
-        r.setex(cache_key, 1500, reply)
-        print(f"💾 Cache set: {cache_key}")
+        # r.setex(cache_key, 1500, reply)
+        # print(f"💾 Cache set: {cache_key}")
 
         return reply, state
     except Exception as e:
@@ -72,8 +72,8 @@ with gr.Blocks(css=".chatbox {height: 400px;}") as demo:
         if chat_history is None:
             chat_history = []
         reply, state = call_backend(message, state)
-        chat_history = chat_history + [[message, reply]]
-
+        #chat_history = chat_history + [[message, reply]]
+        chat_history.append([message, reply])
         if state and state.get("step") == -1:
             import threading
             threading.Thread(target=lambda: demo.close(), daemon=True).start()

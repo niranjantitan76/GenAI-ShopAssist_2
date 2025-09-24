@@ -11,7 +11,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 FROM python:3.10-slim
 
 WORKDIR /app
-
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=utf-8
 # Copy only the installed packages from the builder stage
 COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
 
@@ -24,4 +26,4 @@ EXPOSE 8000
 
 # Use the python interpreter to run gunicorn directly.
 # The command is changed from `main:main` to `main:app` to match the application object name in your main.py file.
-CMD ["python", "-m", "gunicorn", "api.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["python", "-m", "gunicorn", "api.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--reload","--timeout", "120","--log-level", "info", "--access-logfile", "-", "--error-logfile", "-"]

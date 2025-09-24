@@ -1,169 +1,20 @@
-#from IPython.display import display
 import json
+import asyncio
 from lib.initialize_conversation import init_conversation
-from lib.dictionary_req import dictionary_present
+from lib.dictionary_req import dictionary_present,dictionary_present_validated
 from lib.intent_confirmation import intent_confirmation_layer
-from lib.recommendation import recommend
-# from lib.chat_client import ChatClient
+from lib.recommendation import compare_product_user_req
 import traceback
-from lib.chat_manager import chat_completions,moderation_check
+from lib.chat_manager import chat_completions,moderation_check,intent_completions
 
-
-# def __init__(self,client: ChatClient):
-#     # Get the initial greeting and populate the LLM conversation history
-#       self.client=client
-
-async def dialogue(user_input, state):
-    """
-    Manages the dialogue flow for a laptop recommendation chatbot, processing one user input per call.
-    It internally manages the LLM conversation history within the state object.
-
-    Args:
-        user_input (str): The current input from the user.
-        state (dict): A dictionary to maintain the state of the conversation, including:
-                      - 'step': Current step in the dialogue.
-                      - 'llm_conversation_history': The conversation history in LLM format.
-                      - 'top_3_laptops': List of recommended laptops, once identified.
-                      - 'conversation_reco': Separate history for post-recommendation chat.
-
-    Returns:
-        tuple: A tuple containing the assistant's response (str) and the updated state (dict).
-    """
-    # client = ChatClient()
-    # response = initial_conv_history_llm[-1]['content'] # Get the actual greeting text
-    #state['step'] = 1  # Move to step 1 after initial greeting
-    # Initialize state for a new session if needed
-    # This block executes for the very first turn of a new session
-    response = ""
-
-    # Initialize state for a new session if needed
-    # This block executes for the very first turn of a new session
-    if state is None or state.get('step') == 0:
-        # Initialize the state dictionary with default values
-        state = {
-            "step": 0,
-            "llm_conversation_history": [],  # This will hold LLM-formatted chat history
-            "top_3_laptops": None,
-            "conversation_reco": None  # History for post-recommendation chat
-        }
-        # Get the initial greeting and populate the LLM conversation history
-        initial_conv_history_llm = init_conversation()  # Should return something like [{"role": "assistant", "content": "Hello..."}]
-        state['llm_conversation_history'] = initial_conv_history_llm
-        # response = initial_conv_history_llm[-1]['content'] # Get the actual greeting text
-        state['step'] = 1  # Move to step 1 after initial greeting
-        # return response, state
-
-    # --- Extract state variables for the current turn ---
-    llm_conversation_history = state.get('llm_conversation_history')
-    top_3_laptops = state.get('top_3_laptops')
-    conversation_reco = state.get('conversation_reco')  # History for follow-up questions
-
-    try:
-        # --- Handle "exit" command ---
-        if user_input.lower() == "exit":
-            response = "Thank you for using the laptop recommender! Goodbye."
-            state['step'] = -1
-            # Reset state to allow a new conversation to start cleanly next time
-            return response, {"step": 0, "llm_conversation_history": [], "top_3_laptops": None,
-                              "conversation_reco": None}
-
-        # --- Moderation Check for User Input ---
-        moderation_status = moderation_check(user_input)
-        if moderation_status == 'Flagged':
-            response = "Sorry, this message has been flagged. Please restart your conversation."
-            print(response)
-            print(state)
-            return {"reply":response, "state":state}  # Keep current state, user needs to restart by typing "exit" or refreshing
-
-        # --- Main Dialogue Logic: Before Recommendations are Made (Gathering Info) ---
-        if top_3_laptops is None:
-            llm_conversation_history.append({"role": "user", "content": user_input})  # Add user input to LLM history
-            response_assistant = chat_completions(llm_conversation_history)
-
-            # --- Moderation Check for Assistant's Response ---
-            moderation_status = moderation_check(response_assistant)
-            if moderation_status == 'Flagged':
-                response = "Sorry, this message has been flagged. Please restart your conversation."
-                print(response)
-                print(state)
-                return {"reply":response, "state":state}
-            print(f'response assistant: {response_assistant}')
-            confirmation = chat_completions(intent_confirmation_layer(response_assistant),True)
-            print("Intent Confirmation Yes/No:", confirmation)  # For debugging, print to console
-
-            if "No" in confirmation.get('result'):
-                # If intent not confirmed, continue gathering info from user
-                llm_conversation_history.append({"role": "assistant", "content": response_assistant})
-                response = response_assistant
-            else:
-                # Intent confirmed: extract variables and fetch laptops
-                print('\n' + "Variables extracted!" + '\n')  # For debugging
-                extracted_user_prefs = chat_completions(dictionary_present(response_assistant))
-                print(
-                    "Thank you for providing all the information. Kindly wait, while I fetch the products: \n")  # For debugging
-
-                # Fetch and validate recommendations
-                fetched_laptops = recommend(extracted_user_prefs)
-                validated_reco = recommendation_validation(fetched_laptops)
-
-                # Store top_3_laptops and initialize conversation_reco in state
-                state['top_3_laptops'] = validated_reco
-                state['conversation_reco'] = initialize_conv_reco(validated_reco)  # Initialize history for reco chat
-
-                # Generate initial recommendation response using the recommendation specific history
-                state['conversation_reco'].append(
-                    {"role": "user", "content": "This is my user profile" + str(extracted_user_prefs)})
-                recommendation_response = chat_completions(state['conversation_reco'])
-
-                # --- Moderation Check for Recommendation Response ---
-                moderation_status = moderation_check(recommendation_response)
-                if moderation_status == 'Flagged':
-                    response = "Sorry, this message has been flagged. Please restart your conversation."
-                    return response, state
-
-                # Append assistant's recommendation to both histories for full context
-                llm_conversation_history.append({"role": "assistant", "content": recommendation_response})
-                state['conversation_reco'].append({"role": "assistant", "content": recommendation_response})
-                response = recommendation_response
-
-        # --- Main Dialogue Logic: After Recommendations are Made (Handling Follow-up) ---
-        else:
-            # Continue the follow-up conversation using the dedicated recommendation history
-            conversation_reco.append({"role": "user", "content": user_input})
-            follow_up_response = chat_completions(conversation_reco)
-
-            # --- Moderation Check for Follow-up Response ---
-            moderation_status = moderation_check(follow_up_response)
-            if moderation_status == 'Flagged':
-                response = "Sorry, this message has been flagged. Please restart your conversation."
-                return {"reply":response, "state":state}
-
-            response = follow_up_response
-            # Append assistant's response to the main LLM history as well (optional, but good for holistic view)
-            llm_conversation_history.append({"role": "assistant", "content": response})
-            # state['conversation_reco'] is already updated above
-        print(response)
-        state=state
-        return {"reply":response, "state":state}  # Return the response and the updated state
-
-    except Exception as ex:
-        print(f"An unexpected error occurred: {ex}")  # Print to console for server-side debugging
-        # On error, provide a graceful message to the user and reset state for a fresh start
-        print("Error type:", type(ex).__name__)
-        print("Error message:", str(ex))
-        print("Full traceback:")
-        traceback.print_exc()
-        return "An unexpected error occurred. Please try again or type 'exit' to restart.", \
-            {"step": 0, "llm_conversation_history": [], "top_3_laptops": None, "conversation_reco": None}
-
-def recommendation_validation(laptop_recommendation):
-    data = json.loads(laptop_recommendation)
-    data1 = []
-    for i in range(len(data)):
-        if data[i]['Score'] > 2:
-            data1.append(data[i])
-
-    return data1
+# def recommendation_validation(laptop_recommendation):
+#     data = json.loads(laptop_recommendation)
+#     data1 = []
+#     for i in range(len(data)):
+#         if data[i]['Score'] > 2:
+#             data1.append(data[i])
+#
+#     return data1
 
 def initialize_conv_reco(products):
     system_message = f"""
@@ -183,3 +34,146 @@ def initialize_conv_reco(products):
     return conversation
 
 
+def format_laptops_for_display(laptops):
+    """Formats the list of laptops into a readable string for the user."""
+    if not laptops:
+        return "Sorry, I couldn't find any laptops that match your preferences."
+
+    formatted_list = "Here are my top 3 recommendations:\n\n"
+    for i, laptop in enumerate(laptops[:3]):
+        try:
+            formatted_list += f"{i + 1}. **{laptop['name']}** - {laptop['display']} display, {laptop['cpu']} CPU, {laptop['ram']} RAM, and {laptop['storage']} storage. Priced at Rs. {laptop['price']}.\n"
+        except KeyError as e:
+            print(f"Missing key in laptop data: {e}")
+            continue
+    formatted_list += "\nDo you have any questions about these options, or would you like to restart?"
+    return formatted_list
+
+#
+# def recommendation_validation(laptop_recommendation):
+#     """Validates and filters laptop recommendations based on a score."""
+#     try:
+#         data = json.loads(laptop_recommendation)
+#         valid_laptops = [laptop for laptop in data if laptop.get('Score', 0) > 2]
+#         return valid_laptops
+#     except json.JSONDecodeError as e:
+#         print(f"Error decoding JSON from recommendation: {e}")
+#         return []
+def recommendation_validation(laptop_recommendation):
+    print('recommendation_validation Layer')
+    data = json.loads(laptop_recommendation)
+    data1 = []
+    for i in range(len(data)):
+        if data[i]['Score'] > 2:
+            data1.append(data[i])
+
+    return data1
+
+def dialogue_more_advance(user_input, state):
+
+    # """
+    # Improved dialogue manager for laptop recommender
+    # """
+    #
+    response = ""
+
+    # --- Initialize state ---
+    if state is None or state.get('step') == 0:
+        state = {
+            "step": 0,
+            "llm_conversation_history": [],
+            "top_3_laptops": None,
+            "conversation_reco": None
+        }
+        initial_conv_history_llm =init_conversation()
+        state['llm_conversation_history'] = initial_conv_history_llm
+        state['step'] = 1
+        #return {"reply": initial_conv_history_llm, "state": state}
+
+    llm_conversation_history = state.get('llm_conversation_history')
+    top_3_laptops = state.get('top_3_laptops')
+    conversation_reco = state.get('conversation_reco')
+
+    try:
+        # --- Exit command ---
+        if user_input.lower() == "exit":
+            return {
+                "reply": "Thank you for using the laptop recommender! Goodbye.",
+                "state": {"step": 0, "llm_conversation_history": [], "top_3_laptops": None, "conversation_reco": None}
+            }
+
+        # --- Moderation Check ---
+        moderation_status = moderation_check(user_input)
+        if moderation_status == 'Flagged':
+            return {"reply": "⚠️ Your message was flagged. Please restart.", "state": state}
+
+        # --- Before recommendation step ---
+        if top_3_laptops is None and int(state['step'])<=4:
+            llm_conversation_history.append({"role": "user", "content": user_input})
+            response_assistant = chat_completions(llm_conversation_history)
+
+            # Confirm intent
+            confirmation = intent_completions(intent_confirmation_layer(response_assistant))
+            print("Intent Confirmation Yes/No:", confirmation)  # For debugging, print to console
+
+            if not confirmation.result:
+                llm_conversation_history.append({"role": "assistant", "content": response_assistant})
+                response = response_assistant
+            else:
+                # Intent confirmed: extract variables and fetch laptops
+                print('\n' + "Variables extracted!" + '\n')  # For debugging
+               # Intent confirmed – start fetching laptops
+                state['step'] = 2
+                extracted_user_prefs = chat_completions(dictionary_present(response_assistant), True)
+
+                # Interim response ("please wait")
+                interim_msg = "⏳ Thank you for the details. Please wait while I fetch the best laptops..."
+                # Gradio will show this first
+                print("Interim Message:", interim_msg)
+                #yield {"reply": interim_msg, "state": state}
+
+                fetched_laptops = compare_product_user_req(extracted_user_prefs)
+                top_3_laptops = recommendation_validation(fetched_laptops)
+                print("top_3_laptops:", top_3_laptops)
+
+                state['top_3_laptops'] = top_3_laptops
+                conversation_reco=initialize_conv_reco(top_3_laptops)
+                state['conversation_reco']= conversation_reco
+                print("Conversation Reco:", conversation_reco)
+                conversation_reco.append({"role": "user", "content": "This is my user profile" + str(extracted_user_prefs)})
+
+                recommendation = chat_completions(conversation_reco)
+                print("Conversation Reco:", recommendation)
+                moderation = moderation_check(recommendation)
+                if moderation == 'Flagged':
+                    return {"reply": "⚠️ Your message was flagged. Please restart.", "state": state}
+
+                conversation_reco.append({"role": "assistant", "content": str(recommendation)})
+
+                print(str(recommendation) + '\n')
+                response = recommendation
+            return {"reply": response, "state": state}
+
+        # --- After recommendation available ---
+        else:
+            if "recommend" in user_input.lower():
+                state['conversation_reco'].append({"role": "user", "content": user_input})
+                recommendation_response = chat_completions(state['conversation_reco'])
+
+                # Reset after showing recommendations
+                reply_final = "📊 Top 3 Laptop Recommendations:\n\n" + recommendation_response
+                reset_state = {"step": 0, "llm_conversation_history": [], "top_3_laptops": None, "conversation_reco": None}
+                return {"reply": reply_final, "state": reset_state}
+
+            else:
+                # Normal follow-up conversation
+                conversation_reco.append({"role": "user", "content": user_input})
+                follow_up_response = chat_completions(conversation_reco)
+                return {"reply": f"👤 You: {user_input}\n🤖 {follow_up_response}", "state": state}
+
+    except Exception as ex:
+        traceback.print_exc()
+        return {
+            "reply": "❌ An unexpected error occurred. Please type 'exit' to restart.",
+            "state": {"step": 0, "llm_conversation_history": [], "top_3_laptops": None, "conversation_reco": None}
+        }
