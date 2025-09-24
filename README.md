@@ -23,7 +23,6 @@ large language models and rule-based functions to ensure accurate and reliable i
   - 1️⃣ Clone the repository
     - git clone https://github.com/niranjantitan76/GenAI-ShopAssist_2.git
     - cd GenAI-ShopAssist_2
-    -  uv sync or uv pip install -r requirements.txt 
   - 2️⃣ Build and start the container
     - docker-compose up --build
     - use : http://127.0.0.1:7860/gradio/
